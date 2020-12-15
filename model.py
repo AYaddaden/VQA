@@ -53,8 +53,9 @@ class VQAModel(torch.nn.Module):
         """
                    image : [batch_size, 3, 224, 224]
                 question : [batch_size, text_len]
-          initial_hidden : [1, batch_size, embedding_size]
+          initial_hidden : [embedding_size]
         """
+
         enc_question = self.tokenizer(list(question), add_special_tokens=True, padding=True, truncation=True,
                                       return_tensors="pt")  # dictionnary {'input_ids': ..., 'attention_mask': ...}
         input_ids = enc_question['input_ids'].to(self.device)
@@ -64,9 +65,12 @@ class VQAModel(torch.nn.Module):
 
         last_hidden_state = output[0]  # [batch_size, seq_len, hidden_size]
 
+        batch_size = last_hidden_state.size(0)
+
+
         projected_question = self.text_projection(last_hidden_state)  # [batch_size, seq_len, embedding_size]
 
-        hidden = initial_hidden
+        hidden = initial_hidden.unsqueeze(0).repeat(batch_size,1).unsqueeze(0) # [ 1, batch_size, embedding_size]
         output, hidden = self.rnn(projected_question, hidden)
 
         embedded_question = hidden[0].squeeze(0)  # [batch_size, embedding_size]
@@ -79,3 +83,10 @@ class VQAModel(torch.nn.Module):
 
         # [batch_size, d_out]
         return output
+
+if __name__ == "__main__":
+    device = torch.device("cpu")
+    model = VQAModel(10,10,2,0.5,device)
+
+    print(model.image_model)
+    print(model.text_model)

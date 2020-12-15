@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 import torchvision.transforms as transforms
+
 from data_loader import VQADataset
 from model import VQAModel
 
@@ -16,7 +17,6 @@ descriptor = "boolean_answers_dataset_100.csv"
 transform = transforms.Compose(
     [transforms.Resize((224, 224)),
      transforms.ToTensor(),
-
      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
 vqa_dataset = VQADataset(path, descriptor, image_folder, transform=transform)
@@ -42,7 +42,7 @@ n_epochs = 5
 vqa_model = VQAModel(embedding_size, hidden_size_ch, d_out=d_out, dropout=dropout, device=device)
 
 initial_hidden = (
-torch.zeros(1, batch_size, embedding_size).to(device), torch.zeros(1, batch_size, embedding_size).to(device))
+torch.zeros(embedding_size).to(device), torch.zeros(embedding_size).to(device))
 vqa_model.to(device)
 
 
@@ -54,6 +54,7 @@ def map_answer(answer):
 criterion = torch.nn.CrossEntropyLoss()
 
 optimizer = Adam(vqa_model.parameters(), lr=learning_rate)
+
 for epoch in range(n_epochs):
     vqa_model.train()
     for batch_id, batch in enumerate(vqa_dataloader_train):
