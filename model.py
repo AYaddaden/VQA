@@ -1,5 +1,5 @@
 import torch
-from transformers import BertModel, BertTokenizer
+from transformers import BertForSequenceClassification, BertTokenizer
 from torchvision.models import resnet18
 
 
@@ -23,17 +23,17 @@ class VQAModel(torch.nn.Module):
 
     def __init__(self, embedding_size, hidden_size_ch, d_out, dropout, device):
         super(VQAModel, self).__init__()
-        self.text_model = BertModel.from_pretrained('bert-base-cased')
+        self.text_model = BertForSequenceClassification.from_pretrained('bert-base-cased')
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
         self.image_model = resnet18(pretrained=True)
 
-        self.hidden_size_text = self.text_model.config.hidden_size
+        self.hidden_size_text = self.text_model.classifier.in_features
         self.hidden_size_image = self.image_model.fc.in_features
 
         self.embedding_size = embedding_size
 
-        self.text_projection = torch.nn.Linear(self.hidden_size_text, self.embedding_size, bias=False)
-        self.image_model.fc = torch.nn.Linear(self.hidden_size_image, self.embedding_size, bias=False)
+        self.text_model.classifier = torch.nn.Linear(self.hidden_size_text, self.embedding_size, bias=True)
+        self.image_model.fc = torch.nn.Linear(self.hidden_size_image, self.embedding_size, bias=True)
 
         self.rnn = torch.nn.LSTM(input_size=self.embedding_size, hidden_size=self.embedding_size, batch_first=True)
 
