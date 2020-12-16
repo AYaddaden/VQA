@@ -27,6 +27,8 @@ class VQAModel(torch.nn.Module):
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
         self.image_model = resnet18(pretrained=True)
 
+        self.freeze_model()
+
         self.hidden_size_text = self.text_model.classifier.in_features
         self.hidden_size_image = self.image_model.fc.in_features
 
@@ -35,7 +37,7 @@ class VQAModel(torch.nn.Module):
         self.text_model.classifier = torch.nn.Linear(self.hidden_size_text, self.embedding_size, bias=True)
         self.image_model.fc = torch.nn.Linear(self.hidden_size_image, self.embedding_size, bias=True)
 
-        self.rnn = torch.nn.LSTM(input_size=self.embedding_size, hidden_size=self.embedding_size, batch_first=True)
+        #self.rnn = torch.nn.LSTM(input_size=self.embedding_size, hidden_size=self.embedding_size, batch_first=True)
 
         self.classification_head = torch.nn.Sequential(
             torch.nn.Linear(2 * self.embedding_size, hidden_size_ch),
@@ -63,18 +65,10 @@ class VQAModel(torch.nn.Module):
 
         output = self.text_model(input_ids, attention_mask)  # a tuple (last_hidden_state, pooler_output)
 
-        last_hidden_state = output[0]  # [batch_size, seq_len, hidden_size]
+        # [batch_size, embedding_size]
+        embedded_question = output.logits #self.text_projection(last_hidden_state)  # [batch_size, seq_len, embedding_size]
 
-        batch_size = last_hidden_state.size(0)
-
-
-        projected_question = self.text_projection(last_hidden_state)  # [batch_size, seq_len, embedding_size]
-
-        hidden = initial_hidden.unsqueeze(0).repeat(batch_size,1).unsqueeze(0) # [ 1, batch_size, embedding_size]
-        output, hidden = self.rnn(projected_question, hidden)
-
-        embedded_question = hidden[0].squeeze(0)  # [batch_size, embedding_size]
-
+        # [batch_size, embedding_size]
         embedded_image = self.image_model(image)  # [batch_size, embedding_size]
 
         embedding = torch.cat((embedded_question, embedded_image), dim=1)  # [batch_size, 2 * embedding_size]
@@ -83,10 +77,10 @@ class VQAModel(torch.nn.Module):
 
         # [batch_size, d_out]
         return output
-
-if __name__ == "__main__":
-    device = torch.device("cpu")
-    model = VQAModel(10,10,2,0.5,device)
-
-    print(model.image_model)
-    print(model.text_model)
+    
+    def freeze_model(self):
+        #for param in self.image_model.parameters():
+        #    param.requires_grad = False
+        
+        for param in self.text_model.parameters():
+            param.requires_grad = False

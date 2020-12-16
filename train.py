@@ -9,10 +9,10 @@ from model import VQAModel
 from torch.optim import Adam
 
 
-batch_size = 10
-path = "/content/drive/MyDrive/boolean_answers_dataset_100"
-image_folder = "boolean_answers_dataset_images_100"
-descriptor = "boolean_answers_dataset_100.csv"
+batch_size = 64
+path = "/home/ali/Desktop/code/dataset"
+image_folder = "boolean_answers_dataset_images_10000"
+descriptor = "boolean_answers_dataset_10000.csv"
 
 transform = transforms.Compose(
     [transforms.Resize((224, 224)),
@@ -33,9 +33,9 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else 'cpu')
 
 
 embedding_size = 512
-hidden_size_ch = 512
+hidden_size_ch = 256
 d_out = 2
-dropout = 0.5
+dropout = 0.1
 learning_rate = 1e-4
 n_epochs = 5
 
@@ -57,6 +57,7 @@ optimizer = Adam(vqa_model.parameters(), lr=learning_rate)
 
 for epoch in range(n_epochs):
     vqa_model.train()
+    
     for batch_id, batch in enumerate(vqa_dataloader_train):
         image, question, answer = batch
         answer = torch.tensor(list(map(map_answer, answer)))
@@ -64,6 +65,12 @@ for epoch in range(n_epochs):
         image, answer = image.to(device), answer.to(device)
 
         output = vqa_model(image, question, initial_hidden)
+
+        sf_output = torch.nn.Softmax(dim=1)(output)  # softmax to obtain the probability distribution
+        _, predicted = torch.max(sf_output, 1)
+        correct = (predicted == answer).sum().item()
+        print("BATCH: {}\nPREDICTED: {}\n".format(batch_id, predicted))
+        print("CORRECTLY PREDICTED OUTPUTS:\n{}\n".format(correct))
 
         loss = criterion(output, answer)
 
